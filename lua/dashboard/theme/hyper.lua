@@ -120,41 +120,45 @@ local function project_list(config, callback)
     label = ' Recent Projects:',
   }, config.project or {})
 
-  local function read_project(data)
-    local res = {}
-    data = string.gsub(data, '%z', '')
-    local dump = assert(loadstring(data))
-    local list = dump()
-    if list then
-      list = vim.list_slice(list, #list - config.project.limit)
-    end
-    for _, dir in ipairs(list or {}) do
-      dir = dir:gsub(vim.env.HOME, '~')
-      table.insert(res, (' '):rep(3) .. ' ' .. dir)
-    end
+	local history = {}
+	if config.project.history ~= nil then
+		history = config.project.history()
+	else
+		local function read_project(data)
+			data = string.gsub(data, '%z', '')
+			local dump = assert(loadstring(data))
+			local list = dump()
+			if list then
+				list = vim.list_slice(list, #list - config.project.limit)
+			end
+			return list
+		end
 
-    if #res == 0 then
-      table.insert(res, (' '):rep(3) .. ' empty project')
-    else
-      reverse(res)
-    end
+		utils.async_read(
+			config.path,
+			vim.schedule_wrap(function(data)
+				history = read_project(data)
+			end)
+		)
+	end
 
-    table.insert(res, 1, config.project.icon .. config.project.label)
-    table.insert(res, 1, '')
-    table.insert(res, '')
-    return res
-  end
+	local res = {}
+	for _, dir in ipairs(history or {}) do
+		dir = dir:gsub(vim.env.HOME, '~')
+		table.insert(res, (' '):rep(3) .. ' ' .. dir)
+	end
 
-  utils.async_read(
-    config.path,
-    vim.schedule_wrap(function(data)
-      local res = {}
-      if config.project.enable then
-        res = read_project(data)
-      end
-      callback(res)
-    end)
-  )
+	if #res == 0 then
+		table.insert(res, (' '):rep(3) .. ' empty project')
+	else
+		reverse(res)
+	end
+
+	table.insert(res, 1, config.project.icon .. config.project.label)
+	table.insert(res, 1, '')
+	table.insert(res, '')
+
+	callback(res)
 end
 
 local function mru_list(config)
