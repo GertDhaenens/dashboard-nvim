@@ -122,7 +122,16 @@ local function project_list(config, callback)
 
 	local history = {}
 	if config.project.history ~= nil then
-		history = config.project.history()
+		if type(config.project.history) == 'function' then
+			history = config.project.history()
+		elseif type(config.project.history) == 'string' then
+			local dump = loadstring(config.project.history)
+			if not dump then
+				history = vim.cmd(config.project.history)
+			else
+				history = dump()
+			end
+		end
 	else
 		local function read_project(data)
 			data = string.gsub(data, '%z', '')
